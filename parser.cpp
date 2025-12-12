@@ -70,7 +70,7 @@ RespValue parseError(const std::string& input, size_t& pos) {
     pos++;
 
     std::string lineContent = readLine(input, pos);
-    return RespValue(RespType::ERROR, lineContent);
+    return RespValue(RespType::ERR, lineContent);
 }
 
 RespValue parseInteger(const std::string& input, size_t& pos) {

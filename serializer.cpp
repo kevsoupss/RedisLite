@@ -6,7 +6,7 @@ std::string serialize(const RespValue& value) {
     switch (value.respType) {
         case RespType::SIMPLE_STRING:
             return serializeSimpleString(std::get<std::string>(value.value));
-        case RespType::ERROR:
+        case RespType::ERR:
             return serializeError(std::get<std::string>(value.value));
         case RespType::INTEGER:
             return serializeInteger(std::get<long long>(value.value));

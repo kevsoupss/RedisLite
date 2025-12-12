@@ -7,7 +7,7 @@
 
 enum RespType {
     SIMPLE_STRING,
-    ERROR,
+    ERR,
     INTEGER,
     BULK_STRING,
     ARRAY
