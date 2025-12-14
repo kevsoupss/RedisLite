@@ -25,6 +25,7 @@ bool isInteger(const std::string& s) {
     }
     return true;
 }
+
 static std::string readLine(const std::string& input, size_t& pos) {
     const size_t startIndex = pos;
     while (pos < input.size()) {

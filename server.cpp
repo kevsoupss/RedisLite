@@ -9,6 +9,8 @@ Server::Server(unsigned short port, CommandHandler handler)
     : port_(port), handler_(std::move(handler)), listenSocket_(INVALID_SOCKET), running_(false) {}
 
 bool Server::start() {
+
+    // Initialize Winsock
     WSADATA wsaData;
     int res = WSAStartup(MAKEWORD(2,2), &wsaData);
     if (res != 0) {
@@ -16,6 +18,7 @@ bool Server::start() {
         return false;
     }
 
+    // Create server socket
     listenSocket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listenSocket_ == INVALID_SOCKET) {
         std::cerr << "socket() failed: " << WSAGetLastError() << "\n";
@@ -23,15 +26,17 @@ bool Server::start() {
         return false;
     }
 
+    // Socket options
+    BOOL opt = TRUE;
+    setsockopt(listenSocket_, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (const char*)&opt, sizeof(opt));
 
-    int opt = 1;
-    setsockopt(listenSocket_, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
-
+    // Address structure
     sockaddr_in service{};
     service.sin_family = AF_INET;
     service.sin_addr.s_addr = INADDR_ANY;
     service.sin_port = htons(port_);
 
+    // Bind socket to port and address
     if (bind(listenSocket_, (sockaddr*)&service, sizeof(service)) == SOCKET_ERROR) {
         std::cerr << "bind() failed: " << WSAGetLastError() << "\n";
         closesocket(listenSocket_);
@@ -39,6 +44,7 @@ bool Server::start() {
         return false;
     }
 
+    // Server starts listening
     if (listen(listenSocket_, SOMAXCONN) == SOCKET_ERROR) {
         std::cerr << "listen() failed: " << WSAGetLastError() << "\n";
         closesocket(listenSocket_);
@@ -51,6 +57,7 @@ bool Server::start() {
 
     // Single thread
     while (running_) {
+        // Blocks until client connection
         SOCKET clientSock = accept(listenSocket_, nullptr, nullptr);
         if (clientSock == INVALID_SOCKET) {
             std::cerr << "accept() failed: " << WSAGetLastError() << "\n";
@@ -58,12 +65,12 @@ bool Server::start() {
         }
         std::cout << "Client connected.\n";
 
-
+        // Accumulation buffer
         std::string readBuffer;
         const int BUFFER_SZ = 4096;
         std::vector<char> tmp(BUFFER_SZ);
 
-
+        // TCP receive loop
         while (true) {
             int bytes = recv(clientSock, tmp.data(), BUFFER_SZ, 0);
             if (bytes == 0) {
@@ -79,6 +86,8 @@ bool Server::start() {
             readBuffer.append(tmp.data(), bytes);
 
             size_t pos = 0;
+
+            // Parse RESP values
             while (pos < readBuffer.size()) {
                 try {
                     RespValue req = parseValue(readBuffer, pos);
