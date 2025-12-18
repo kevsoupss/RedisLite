@@ -8,6 +8,8 @@
 std::unordered_map<std::string, Handler::CommandFunction> Handler::commandMap_ = {
     {"GET", &Handler::handleGet},
     {"SET", &Handler::handleSet},
+    {"EXISTS", &Handler::handleExists},
+    {"DEL", &Handler::handleDel},
 };
 
 std::unordered_map<std::string, Handler::DataEntry> Handler::dataStore_ {};
@@ -88,8 +90,7 @@ RespValue Handler::handleGet(const std::vector<RespValue> &array) {
 }
 
 RespValue Handler::handleSet(const std::vector<RespValue> &array) {
-    size_t arraySize = array.size();
-    if (arraySize < 3) {
+    if (array.size() < 3) {
         return RespValue::makeProtocolError("Wrong number of arguments for 'SET' command");
     }
     const std::string& key = array[1].getString();
@@ -111,4 +112,39 @@ RespValue Handler::handleSet(const std::vector<RespValue> &array) {
 
     dataStore_[key] = {value, expireAt};
     return RespValue::makeSimpleString("OK");
+}
+
+RespValue Handler::handleExists(const std::vector<RespValue> &array) {
+    if (array.size() < 2) {
+        return RespValue::makeProtocolError("Wrong number of arguments for 'EXISTS' command");
+    }
+
+    const std::string& key = array[1].getString();
+
+    auto it = dataStore_.find(key);
+
+    if (it == dataStore_.end()) {
+        return RespValue::makeLongLong(0);
+    }
+
+    if (it->second.expireAt != -1 && getNowMS() > it ->second.expireAt) {
+        dataStore_.erase(it);
+        return RespValue::makeLongLong(0);
+    }
+
+    return RespValue::makeLongLong(1);
+
+}
+
+RespValue Handler::handleDel(const std::vector<RespValue> &array) {
+    int deletedCount = 0;
+    for (int i = 1; i < array.size(); i++) {
+        const std::string& key = array[i].getString();
+        auto it = dataStore_.find(key);
+        if (it != dataStore_.end()) {
+            dataStore_.erase(it);
+            deletedCount++;
+        }
+    }
+    return RespValue::makeLongLong(deletedCount);
 }

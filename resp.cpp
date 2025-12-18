@@ -62,4 +62,11 @@ RespValue RespValue::makeSimpleString(const std::string& msg) {
     return simpleString;
 }
 
+RespValue RespValue::makeLongLong(const long long& value) {
+    RespValue res;
+    res.respType = RespType::INTEGER;
+    res.value = value;
+    return res;
+}
+
 

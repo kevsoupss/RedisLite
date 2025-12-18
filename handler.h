@@ -27,6 +27,9 @@ private:
     static RespValue routeCommand(std::string &commandName, const std::vector<RespValue> &array);
     static RespValue handleGet(const std::vector<RespValue> &array);
     static RespValue handleSet(const std::vector<RespValue> &array);
+    static RespValue handleExists(const std::vector<RespValue> &array);
+    static RespValue handleDel(const std::vector<RespValue> &array);
+
 };
 
 
