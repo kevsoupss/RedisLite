@@ -5,7 +5,7 @@ Attempting to build a lite Redis Server in C++ with the same operations and supp
 ## Current Functionality
 - Implements the Redis Serialization Protocol (RESP) for I/O
 - Supports core "GET" and "SET" commands
-- Stores data in `unordered_map, no persistence on shutdown
+- Stores data in `unordered_map`, no persistence on shutdown
 - Handles concurrency using a single-threaded event loop
 - Expiration/TTL functionality with lazy deletion
 
