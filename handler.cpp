@@ -80,6 +80,7 @@ RespValue Handler::handleGet(const std::vector<RespValue> &array) {
     }
 
     if (it->second.expireAt != -1 && getNowMS() > it ->second.expireAt) {
+        dataStore_.erase(it);
         return RespValue::makeNullBulkString();
     }
 
