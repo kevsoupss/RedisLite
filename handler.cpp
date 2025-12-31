@@ -6,10 +6,11 @@
 
 // Command Mapper
 std::unordered_map<std::string, Handler::CommandFunction> Handler::commandMap_ = {
-    {"GET", &Handler::handleGet},
-    {"SET", &Handler::handleSet},
+    {"GET",    &Handler::handleGet},
+    {"SET",    &Handler::handleSet},
     {"EXISTS", &Handler::handleExists},
-    {"DEL", &Handler::handleDel},
+    {"DEL",    &Handler::handleDel},
+    {"FLUSHALL", &Handler::handleFlush}
 };
 
 std::unordered_map<std::string, Handler::DataEntry> Handler::dataStore_ {};
@@ -51,7 +52,7 @@ RespValue Handler::handler(const RespValue &req) {
             std::transform(commandName.begin(), commandName.end(), commandName.begin(),
                            [](unsigned char c){ return std::toupper(c); });
 
-            return routeCommand(commandName, array);
+            return this->routeCommand(commandName, array);
         } else {
             return RespValue::makeProtocolError("Array is null or empty.");
         }
@@ -64,7 +65,8 @@ RespValue Handler::routeCommand(std::string &commandName, const std::vector<Resp
     auto it = commandMap_.find(commandName);
 
     if (it != commandMap_.end()) {
-        return it->second(array);
+        CommandFunction func = it->second;
+        return (this->*func)(array);
     } else {
         return RespValue::makeProtocolError(commandName + " does not exist");
     }
@@ -102,15 +104,26 @@ RespValue Handler::handleSet(const std::vector<RespValue> &array) {
         std::transform(option.begin(), option.end(), option.begin(), ::toupper);
 
         if (option == "PX") {
-            uint64_t ttl = std::stoll(array[4].getString());
-            expireAt = getNowMS() + ttl;
+            expireAt = getNowMS() + std::stoll(array[4].getString());
         } else if (option == "EX") {
-            uint64_t ttl = std::stoll(array[4].getString());
-            expireAt = getNowMS() + (ttl * 1000);
+            expireAt = getNowMS() + (std::stoll(array[4].getString())* 1000);
+        }else if (option == "PXAT") {
+            expireAt = std::stoll(array[4].getString());
+        } else if (option == "EXAT") {
+            expireAt = std::stoll(array[4].getString()) * 1000;
         }
     }
 
     dataStore_[key] = {value, expireAt};
+
+    if (expireAt > 0) {
+        std::string aofCmd = "SET " + key + " " + value.getString() + " " + std::to_string(expireAt);
+        logger_.append(aofCmd);
+    } else {
+        std::string aofCmd = "SET " + key + " " + value.getString();
+        logger_.append(aofCmd);
+    }
+
     return RespValue::makeSimpleString("OK");
 }
 
@@ -147,4 +160,57 @@ RespValue Handler::handleDel(const std::vector<RespValue> &array) {
         }
     }
     return RespValue::makeLongLong(deletedCount);
+}
+
+RespValue Handler::handleFlush(const std::vector<RespValue> &array) {
+    internalClear();
+    logger_.clearFile();
+    return RespValue::makeSimpleString("OK");
+}
+
+void Handler::recover(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) return;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::vector<RespValue> cmd = parseAofLine(line);
+
+        if (cmd.size() >= 3) {
+            std::string key = cmd[1].getString();
+            RespValue val = cmd[2];
+
+            uint64_t expireAt = -1;
+            if (cmd.size() >= 4) {
+                expireAt = std::stoull(cmd[3].getString());
+            }
+
+            uint64_t now = std::chrono::duration_cast<std::chrono::seconds>(
+                           std::chrono::system_clock::now().time_since_epoch()).count();
+
+            if (expireAt == -1 || expireAt > now) {
+                internalSet(key, val, expireAt);
+            }
+        }
+    }
+}
+
+std::vector<RespValue> Handler::parseAofLine(const std::string& line) {
+    std::vector<RespValue> cmd;
+    std::stringstream ss(line);
+    std::string word;
+
+    while (ss >> word) {
+        cmd.push_back(RespValue::makeBulkString(word));
+    }
+
+    return cmd;
+}
+
+void Handler::internalSet(const std::string& key, const RespValue& value, uint64_t expireAt) {
+    dataStore_[key] = { value, expireAt };
+}
+
+void Handler::internalClear() {
+    dataStore_.clear();
 }

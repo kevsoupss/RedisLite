@@ -14,7 +14,8 @@ add_executable(Cache main.cpp
         handler.cpp
         handler.h
         resp.cpp
-        resp.cpp)
+        logger.cpp
+)
 
 target_link_libraries(Cache ws2_32)
 

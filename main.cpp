@@ -5,7 +5,17 @@
 #include "handler.h"
 
 int main() {
-    Server server(6379, Handler::handler);
+    std::string filename = "cache.aof";
+
+    AofLogger logger = AofLogger(filename);
+    Handler commandHandler(logger);
+
+    // Aof file persistence
+    commandHandler.recover(filename);
+
+    Server server(6379, [&commandHandler](const auto& args) {
+        return commandHandler.handler(args);
+    });
 
     if (!server.start()) {
         std::cerr << "Failed to start RedisLite server\n";

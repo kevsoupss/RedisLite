@@ -38,6 +38,7 @@ struct RespValue {
     static RespValue makeProtocolError(const std::string& msg);
     static RespValue makeNullBulkString();
     static RespValue makeSimpleString(const std::string& msg);
+    static RespValue makeBulkString(const std::string& msg);
     static RespValue makeLongLong(const long long& value);
 
 };
